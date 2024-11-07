@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping Assistant</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #f0f2f5; 
+        }
+        .chat-container { 
+            max-width: 1070px; 
+            margin: 30px auto; 
+            padding: 20px; 
+            background: white; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); 
+            height: 500px; 
+            overflow-y: auto; 
+        }
+        .message { 
+            border-radius: 5px; 
+            padding: 10px; 
+            display: inline-block; 
+            max-width: 90%; 
+            margin-bottom: 10px; 
+        }
+        .user-message { 
+            text-align: right; 
+        }
+        .user-message .message { 
+            background-color: #d1ecf1; 
+            margin-left: auto; 
+        }
+        .ai-message { 
+            text-align: left; 
+        }
+        .ai-message .message { 
+            background-color: #c3e6cb; 
+            margin-right: auto; 
+        }
+        .input-group { 
+            margin-top: 20px; 
+        }
+        .input-group input { 
+            border-radius: 20px; 
+            padding: 15px; 
+            border: 1px solid #ced4da; 
+            height: 50px; 
+        }
+        .input-group button { 
+            border-radius: 20px; 
+            padding: 15px; 
+            height: 50px; 
+            margin-left: 10px; 
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+        }
+        .input-group button:disabled { 
+            background-color: #c0c0c0; 
+        }
+        h2 { 
+            margin-bottom: 20px; 
+            color: #343a40; 
+        }
+        .ai-message, .user-message { 
+            margin-bottom: 15px; 
+        }
+        .options { 
+            margin-top: 10px; 
+        }
+        .options button { 
+            border-radius: 20px; 
+            padding: 8px 15px; 
+            margin: 5px; 
+            background-color: #e9ecef; 
+            border: 1px solid #ced4da; 
+            transition: background-color 0.3s; 
+        }
+        .options button:hover { 
+            background-color: #d1d1d1; 
+        }
+        .home-button {
+            margin-top: 20px;
+            display: none;
+        }
+        #buttonContainer {
+            display: flex;
+            gap: 10px; /* Space between the buttons */
+            justify-content: center; /* Center-align the buttons horizontally */
+            margin-top: 10px; /* Optional: adjust spacing from the top */
+        }
+        #buttonContainer button {
+            flex: 1; /* Make both buttons the same width */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center">Shopping Assistant</h2>
+        <div class="chat-container" id="chatContainer">
+            <!-- Messages will be dynamically inserted here -->
+        </div>
+        <div class="input-group mb-3">
+            <input type="text" id="userPrompt" class="form-control" placeholder="Ask me anything..." aria-label="Ask me anything..." disabled onkeyup="validateInput()">
+            <div class="input-group-append">
+                <button id="submitButton" class="btn btn-primary" onclick="askOllama()" disabled>Submit</button>
+            </div>
+        </div>
+        <div id = "buttonContainer">
+            <button id="homeButton" class="btn btn-secondary home-button" onclick="goToHome()">Go to Home</button>
+            <button id="viewCartButton" class="btn btn-info home-button" onclick="viewCart()">View Cart</button>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById("chatContainer");
+        const homeButton = document.getElementById("homeButton");
+        const viewCartButton = document.getElementById("viewCartButton");
+        let optionSelected = false; 
+        let currentOption = null; 
+
+        // Function to display predefined options on chat start
+        function displayInitialOptions() {
+            const optionsDiv = document.createElement("div");
+            optionsDiv.className = "ai-message options";
+            optionsDiv.innerHTML = `
+                <div class="message">
+                    How can I assist you today? Select one of the options below:
+                    <button onclick="handleOptionClick('Find products')">Find products</button>
+                    <button onclick="handleOptionClick('Check order status')">Check order status</button>
+                    <button onclick="handleOptionClick('Product-related queries')">Product-related queries</button>
+                    <button onclick="handleOptionClick('Recommendations')">Recommendations</button>
+                </div>`;
+            chatContainer.appendChild(optionsDiv);
+            homeButton.style.display = "none"; 
+            viewCartButton.style.display = "block";  // Display the view cart button here
+        }
+
+        let selectedProduct = null; // Global variable to store selected product
+        let tracking_id = null; // Global variable to store tracking ID
+
+        // Function to handle option click events
+        function handleOptionClick(option) {
+            if (optionSelected) return;
+
+            optionSelected = true; 
+            currentOption = option;
+
+            if (option === "Product-related queries") {
+                displayUserMessage(option);
+                // Ask user for the product name
+                displayAIMessage("What product do you have queries about?");
+            }else if (option === "Check order status") {
+                displayUserMessage(option);
+                displayAIMessage("Can you provide your order ID so I can check the status?");
+            } else {
+                askOllama(option);
+            }
+
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            document.getElementById("userPrompt").disabled = false;
+            validateInput(); // Check input to set the submit button state
+            homeButton.style.display = "block"; 
+        }
+
+        // Display user message in chat
+        function displayUserMessage(message) {
+            const userMessageDiv = document.createElement("div");
+            userMessageDiv.className = "user-message";
+            userMessageDiv.innerHTML = `<div class="message">${message}</div>`;
+            chatContainer.appendChild(userMessageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Display AI message in chat
+        function displayAIMessage(message) {
+            const aiMessageDiv = document.createElement("div");
+            aiMessageDiv.className = "ai-message";
+            aiMessageDiv.innerHTML = `<div class="message">${message}</div>`;
+            chatContainer.appendChild(aiMessageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function viewCart() {
+            const response = await fetch("http://127.0.0.1:5000/view_cart");
+            const data = await response.json();
+            const cartContent = data.response || "Error fetching cart content.";  // Ensure a valid response
+
+            // Display the cart content in the chat
+            displayAIMessage(cartContent);
+        }
+
+        async function trackOrder(tracking_id) {
+            const response = await fetch("http://127.0.0.1:5000/track_order", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ prompt: tracking_id })
+            });
+            const data = await response.json();
+            const trackOrderResponse = data.response || "Error fetching order status.";  // Ensure a valid response
+
+            // Display the order status in the chat
+            displayAIMessage(trackOrderResponse);
+        }
+
+        async function askOllama(prompt = null) {
+            if (!prompt) {
+                prompt = document.getElementById("userPrompt").value.trim();
+                document.getElementById("userPrompt").value = ""; 
+            }
+
+            if (!prompt) return;
+
+            if (prompt.includes("Add to cart - ")) {
+                displayUserMessage(prompt);
+                const productName = prompt.split("Add to cart - ")[1].trim();  // Extract product name
+                // Call server to add product to the cart
+                const response = await fetch("http://127.0.0.1:5000/ask", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ prompt: `Add to cart - ${productName}` })
+                });
+                const data = await response.json();
+                displayAIMessage(data.response || `${productName} added to cart!`);
+                return;
+            }
+            
+            // Handling remove from cart command
+            if (prompt.startsWith("Remove from cart - ")) {
+                displayUserMessage(prompt);
+                const productName = prompt.split("Remove from cart - ")[1].trim();  // Extract product name
+                // Call server to remove product from the cart
+                const response = await fetch("http://127.0.0.1:5000/ask", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ prompt: `Remove from cart - ${productName}` })
+                });
+                const data = await response.json();
+                displayAIMessage(data.response || `${productName} removed from cart!`);
+                return;
+            }
+
+            if (prompt.toLowerCase().includes("view cart") || prompt.toLowerCase().includes("what is in my cart")) {
+                displayUserMessage(prompt);
+                viewCart();  // Call the function to display cart content
+                return;  // Exit to prevent further processing
+            }
+
+            if (prompt && currentOption === "Find products") {
+                prompt = `${prompt}`; 
+            }
+
+            if (prompt && currentOption === "Product-related queries") {
+                if (!selectedProduct) {
+                    // First input is the product name
+                    selectedProduct = prompt;
+                    // Display user message for product name
+                    displayUserMessage(prompt);
+
+                    // Display AI message asking for a specific question about the product
+                    displayAIMessage(`What would you like to know about ${selectedProduct}? You can ask for specifications, price, or availability.`);
+
+                    return; // Exit to wait for user's next input
+                } else {
+                    // If product is already selected, combine it with the question
+                    prompt = `Product: ${selectedProduct}: ${prompt}`;
+                }
+            }
+
+            if (currentOption === "Check order status") {
+                console.log(currentOption);
+                console.log("tracking id", prompt);
+                if(!tracking_id) {
+                    console.log("inisde if");
+                    tracking_id = prompt;
+                    console.log(tracking_id);
+                    displayUserMessage(prompt);
+                    trackOrder(tracking_id);
+                    return;
+                }else {
+                    console.log("inside else");
+                    tracking_id = prompt;
+                    console.log("inside else", tracking_id);
+                    displayUserMessage(prompt);
+                    trackOrder(tracking_id);
+                    return;
+                }
+            }
+
+            // Display user message
+            displayUserMessage(prompt);
+                
+
+            // Fetch response from server
+            const response = await fetch("http://127.0.0.1:5000/ask", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ prompt: prompt, selectedProduct: selectedProduct})
+            });
+
+            const data = await response.json();
+            const aiResponse = data.response || "Error getting response.";
+
+            // Display AI response message
+            displayAIMessage(aiResponse); 
+        }
+
+        function scrollToBottom() {
+            window.scrollTo({
+                top: document.body.scrollHeight,
+                behavior: "smooth" // Adds a smooth scrolling effect
+            });
+        }
+
+        function goToHome() { 
+            displayInitialOptions(); 
+            optionSelected = false; 
+            currentOption = null; 
+            selectedProduct = null; // Reset selected product
+            document.getElementById("userPrompt").disabled = true;
+            document.getElementById("submitButton").disabled = true;
+            homeButton.style.display = "none";
+            viewCartButton.style.display = "block";  // Ensure view cart is visible
+            validateInput(); // Reset button state
+            scrollToBottom();  // Call the scroll function to go to the bottom
+        }
+
+        function validateInput() {
+            const userInput = document.getElementById("userPrompt").value;
+            document.getElementById("submitButton").disabled = userInput.trim().length === 0;
+        }
+
+        document.getElementById("userPrompt").addEventListener("keypress", function(event) {
+            if (event.key === "Enter" && !this.disabled) {
+                event.preventDefault();
+                askOllama();
+            }
+        });
+
+            window.onload = displayInitialOptions;
+    </script>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+</body>
+</html>
